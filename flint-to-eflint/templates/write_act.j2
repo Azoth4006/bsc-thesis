@@ -1,17 +1,15 @@
 {% import "tools.j2" as tools %}
 
 {% for frame in frames %}
-    {% if frame.typeId == 'act' %}
+  {% if frame.typeId == 'act' %}
 
 Act [{{ frame.label }}] Actor [{{ frame.actorId }}] Recipient [{{ frame.recipientId }}]
-        {% if frame.objectId %}
-Related to [{{ frame.objectId }}]
-        {% endif %}
-        {% if frame.precondition['children'] %}
+{% if frame.precondition %}
 Holds when (
-{{ tools.render_condition(frame.precondition, frames) }}
+{% if frame.objectId %}[{{ frame.objectId }}] && {% endif %}{{ tools.render_condition(frame.precondition, frames) }}
 )
-        {% endif %}
+{% endif %}
+
 {% set creates = [] %}
 {% for c in frame.creates or [] %}
   {% for f in frames %}
@@ -20,9 +18,7 @@ Holds when (
     {% endif %}
   {% endfor %}
 {% endfor %}
-{% if creates %}
-Creates [{{ creates | join('], [') }}]
-{% endif %}
+{% if creates %}Creates [{{ creates | join('], [') }}]{% endif %}
 
 {% set terminates = [] %}
 {% for t in frame.terminates or [] %}
@@ -32,9 +28,7 @@ Creates [{{ creates | join('], [') }}]
     {% endif %}
   {% endfor %}
 {% endfor %}
-{% if terminates %}
-Terminates [{{ terminates | join('], [') }}]
-{% endif %}
+{% if terminates %}Terminates [{{ terminates | join('], [') }}]{% endif %}
 .
-    {% endif %}
+  {% endif %}
 {% endfor %}

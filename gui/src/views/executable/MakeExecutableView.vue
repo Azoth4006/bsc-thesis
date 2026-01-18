@@ -31,7 +31,13 @@
                   </q-item-label>
 
                   <div v-if="isAgentFact(f) && selectedIds.includes(f.id)" @click.stop>
-                    <q-input dense outlined placeholder="instance name" v-model="agentInstanceNames[f.id]" class="q-mt-xs" />
+                    <q-input
+                      dense
+                      outlined
+                      placeholder="instance name"
+                      v-model="agentInstanceNames[f.id]"
+                      class="q-mt-xs"
+                    />
                   </div>
 
                   <div v-if="isAct(f) && selectedIds.includes(f.id)" @click.stop class="q-mt-xs">
@@ -58,13 +64,6 @@
                       dense outlined label="Recipient name"
                       placeholder="instance name"
                       v-model="actSelections[f.id].recipientName"
-                      class="q-mb-sm"
-                    />
-
-                    <q-select
-                      dense outlined label="Object"
-                      :options="objectTypeOptions" emit-value map-options
-                      v-model="actSelections[f.id].objectType"
                     />
                   </div>
                 </q-item-section>
@@ -139,6 +138,11 @@ export default {
       set(v) { this.$store.state.executableSelectedIds = v; },
     },
 
+    clickOrder: {
+      get() { return this.$store.state.executableClickOrder || []; },
+      set(v) { this.$store.state.executableClickOrder = v; },
+    },
+
     agentInstanceNames: {
       get() { return this.$store.state.executableAgentInstanceNames || {}; },
       set(v) { this.$store.state.executableAgentInstanceNames = v; },
@@ -164,24 +168,37 @@ export default {
     },
 
     framesUnion() {
-      return this.allFrames.filter(
-        (f) => !(f.typeId === "fact" && ["action", "duty"].includes(f.subTypeIds?.[0]))
-      );
+      const rank = (f) => {
+        if (f.typeId === "fact") {
+          if (f.subTypeIds?.[0] === "agent") return 0;
+          if (f.subTypeIds?.[0] === "object") return 1;
+          if (f.subTypeIds?.[0] === "condition") return 2;
+          return 3;
+        }
+        if (f.typeId === "act") return 4;
+        return 9;
+      };
+
+      return this.allFrames
+        .filter((f) => !(f.typeId === "fact" && ["action", "duty"].includes(f.subTypeIds?.[0])))
+        .slice()
+        .sort((a, b) => {
+          const ra = rank(a), rb = rank(b);
+          if (ra !== rb) return ra - rb;
+          return a.shortName.localeCompare(b.shortName);
+        });
     },
 
     selectedFrames() {
-      return this.framesUnion.filter((f) => this.selectedIds.includes(f.id));
+      const byId = Object.fromEntries(this.framesUnion.map((f) => [f.id, f]));
+      return this.clickOrder
+        .filter((id) => this.selectedIds.includes(id) && byId[id])
+        .map((id) => byId[id]);
     },
 
     agentTypeOptions() {
       return this.framesUnion
         .filter((f) => this.isAgentFact(f))
-        .map((f) => ({ label: f.shortName, value: f.shortName }));
-    },
-
-    objectTypeOptions() {
-      return this.framesUnion
-        .filter((f) => f.typeId === "fact" && f.subTypeIds?.[0] === "object")
         .map((f) => ({ label: f.shortName, value: f.shortName }));
     },
 
@@ -195,12 +212,8 @@ export default {
           const sel = this.actSelections[f.id] || {};
           const at = sel.actorType || "";
           const rt = sel.recipientType || "";
-          const ot = sel.objectType || "";
-
           const an = this.escape(sel.actorName || "");
           const rn = this.escape(sel.recipientName || "");
-
-          if (ot) return `[${f.shortName}]([${at}]("${an}"), [${rt}]("${rn}"), [${ot}]).`;
           return `[${f.shortName}]([${at}]("${an}"), [${rt}]("${rn}")).`;
         }
 
@@ -225,8 +238,10 @@ export default {
     toggle(id) {
       if (this.selectedIds.includes(id)) {
         this.selectedIds = this.selectedIds.filter((x) => x !== id);
+        this.clickOrder = this.clickOrder.filter((x) => x !== id);
       } else {
         this.selectedIds = [...this.selectedIds, id];
+        this.clickOrder = [...this.clickOrder, id];
 
         const f = this.framesUnion.find((x) => x.id === id);
 
@@ -237,7 +252,7 @@ export default {
         if (f && this.isAct(f) && this.actSelections[id] === undefined) {
           this.actSelections = {
             ...this.actSelections,
-            [id]: { actorType: "", actorName: "", recipientType: "", recipientName: "", objectType: "" },
+            [id]: { actorType: "", actorName: "", recipientType: "", recipientName: "" },
           };
         }
       }
@@ -245,6 +260,7 @@ export default {
 
     selectAll() {
       this.selectedIds = this.framesUnion.map((f) => f.id);
+      this.clickOrder = [...this.selectedIds];
 
       const names = { ...this.agentInstanceNames };
       const acts = { ...this.actSelections };
@@ -252,7 +268,7 @@ export default {
       this.framesUnion.forEach((f) => {
         if (this.isAgentFact(f) && names[f.id] === undefined) names[f.id] = "";
         if (this.isAct(f) && acts[f.id] === undefined) {
-          acts[f.id] = { actorType: "", actorName: "", recipientType: "", recipientName: "", objectType: "" };
+          acts[f.id] = { actorType: "", actorName: "", recipientType: "", recipientName: "" };
         }
       });
 
@@ -262,6 +278,7 @@ export default {
 
     selectNone() {
       this.selectedIds = [];
+      this.clickOrder = [];
     },
 
     applySelection() {
