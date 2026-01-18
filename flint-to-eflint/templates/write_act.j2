@@ -12,12 +12,29 @@ Holds when (
 {{ tools.render_condition(frame.precondition, frames) }}
 )
         {% endif %}
-        {% if frame.creates %}
-Creates [{{ frame.creates[0] }}]
-        {% endif %}
-        {% if frame.terminates %}
-Terminates [{{ frame.terminates[0] }}]
-        {% endif %}
+{% set creates = [] %}
+{% for c in frame.creates or [] %}
+  {% for f in frames %}
+    {% if f.label == c and 'duty' not in (f.subTypeIds or []) %}
+      {% set _ = creates.append(c) %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+{% if creates %}
+Creates [{{ creates | join('], [') }}]
+{% endif %}
+
+{% set terminates = [] %}
+{% for t in frame.terminates or [] %}
+  {% for f in frames %}
+    {% if f.label == t and 'duty' not in (f.subTypeIds or []) %}
+      {% set _ = terminates.append(t) %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+{% if terminates %}
+Terminates [{{ terminates | join('], [') }}]
+{% endif %}
 .
     {% endif %}
 {% endfor %}
