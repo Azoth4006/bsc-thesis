@@ -9,9 +9,9 @@ Act [{{ frame.label }}] Actor [{{ frame.actorId }}] Recipient [{{ frame.recipien
 {% set has_cond = cond and cond != '[]' %}
 {% if frame.objectId or has_cond %}
 Holds when (
-{%- if frame.objectId -%}
+  {%- if frame.objectId -%}
 [{{ frame.objectId }}]{% if has_cond %} && {% endif %}
-{%- endif -%}
+  {%- endif -%}
 {%- if has_cond -%}{{ cond }}{%- endif -%}
 )
 {% endif %}

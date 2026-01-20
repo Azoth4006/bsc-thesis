@@ -43,7 +43,7 @@ def extract_json(data: dict) -> list:
     extracted_frames = []
     
     # 2) Helper function to use the lookup dict
-    def find_fact_label(frame_id: str) -> str:
+    def find_label(frame_id: str) -> str:
         return fact_label_by_id[frame_id]
 
     # 3) Create instances of the classes to use in the eflint_generator
@@ -56,12 +56,12 @@ def extract_json(data: dict) -> list:
                 typeId=typ,
                 label=p['label'],
                 actionId=p['actionId'],
-                actorId=find_fact_label(p['actorId']),
-                recipientId=find_fact_label(p['recipientId']),
-                objectId=find_fact_label(p['objectId']),
+                actorId=find_label(p['actorId']),
+                recipientId=find_label(p['recipientId']),
+                objectId=find_label(p['objectId']),
                 precondition=p['precondition'],
-                creates=[find_fact_label(q) for q in p['creates']],
-                terminates=[find_fact_label(q) for q in p['terminates']]
+                creates=[find_label(q) for q in p['creates']],
+                terminates=[find_label(q) for q in p['terminates']]
             )
 
         elif typ == 'fact':
@@ -83,8 +83,8 @@ def extract_json(data: dict) -> list:
                 typeId=typ,
                 label=p['label'],
                 dutyId=p['dutyId'],
-                holderId=find_fact_label(p['holderId']),
-                claimantId=find_fact_label(p['claimantId'])
+                holderId=find_label(p['holderId']),
+                claimantId=find_label(p['claimantId'])
             )
 
         extracted_frames.append(x)
