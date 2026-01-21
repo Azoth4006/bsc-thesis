@@ -1,4 +1,5 @@
 {% macro op_symbol(op) -%}
+    {%- set op = (op or '')|lower -%}
     {%- if op == 'and' -%}&&
     {%- elif op == 'or' -%}||
     {%- elif op == 'plus' -%}+
@@ -8,16 +9,17 @@
     {%- elif op == 'greaterThanOrEqualTo' -%}>=
     {%- elif op == 'lessThanOrEqualTo' -%}<=
     {%- elif op == 'equals' -%}==
-    {%- elif op == 'not' -%}!
     {%- endif -%}
 {%- endmacro %}
 
 {% macro op_prec(op) -%}
-    {%- if op == 'IF' -%}0
+    {%- set op = (op or '')|lower -%}
+    {%- if op == 'if' -%}0
     {%- elif op == 'or' -%}1
     {%- elif op == 'and' -%}2
     {%- elif op in ['lessThan','greaterThan','greaterThanOrEqualTo','lessThanOrEqualTo','equals'] -%}3
     {%- elif op in ['plus','minus'] -%}4
+    {%- elif op == 'not' -%}6
     {%- else -%}5
     {%- endif -%}
 {%- endmacro %}
@@ -30,20 +32,19 @@
 
 {% macro render_condition(node, frames, parent_op=None) -%}
     {%- set children = node.children or [] -%}
-    {%- set op = node.operatorToJoinChildren -%}
-
-    {%- set need_parens = false -%}
-    {%- if parent_op is not none and children|length > 1 -%}
-        {%- if (op_prec(op)|int) < (op_prec(parent_op)|int) -%}
-            {%- set need_parens = true -%}
-        {%- endif -%}
-    {%- endif -%}
+    {%- set op = (node.operatorToJoinChildren or '')|lower -%}
 
     {%- if children|length == 0 -%}
         {%- set expr -%}[{{ frame_label(node.frame, frames) }}]{%- endset -%}
 
-    {%- elif op == 'IF' and children|length == 2 -%}
-        {%- set expr -%}(!( {{ render_condition(children[0], frames, 'or') }} ) || {{ render_condition(children[1], frames, 'or') }}){%- endset -%}
+    {%- elif op == 'not' and children|length == 1 -%}
+        {%- set inner -%}{{ render_condition(children[0], frames, 'not') }}{%- endset -%}
+        {%- set expr -%}!({{ inner }}){%- endset -%}
+
+    {%- elif op == 'if' and children|length == 2 -%}
+        {%- set a -%}{{ render_condition(children[0], frames, 'or') }}{%- endset -%}
+        {%- set b -%}{{ render_condition(children[1], frames, 'or') }}{%- endset -%}
+        {%- set expr -%}(!( {{ a }} ) || {{ b }}){%- endset -%}
 
     {%- elif children|length == 1 -%}
         {%- set expr -%}{{ render_condition(children[0], frames, parent_op) }}{%- endset -%}
@@ -56,9 +57,12 @@
         {%- set expr -%}{{ ns.s }}{%- endset -%}
     {%- endif -%}
 
-    {%- if need_parens -%}
-        {%- set expr -%}({{ expr }}){%- endset -%}
+    {%- set need_parens = false -%}
+    {%- if parent_op is not none and children|length > 1 -%}
+        {%- if (op_prec(op)|int) < (op_prec(parent_op)|int) -%}
+            {%- set need_parens = true -%}
+        {%- endif -%}
     {%- endif -%}
 
-    {%- if node.isNegated -%}!({{ expr }}){%- else -%}{{ expr }}{%- endif -%}
+    {%- if need_parens -%}({{ expr }}){%- else -%}{{ expr }}{%- endif -%}
 {%- endmacro %}
